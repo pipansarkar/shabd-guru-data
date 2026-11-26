@@ -41,6 +41,7 @@ jobs:
         run: dart run exams.dart
       - name: Editorial words
         continue-on-error: true
+        timeout-minutes: 12
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
@@ -48,6 +49,7 @@ jobs:
         run: dart run editorial.dart
       - name: Words
         continue-on-error: true
+        timeout-minutes: 12
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}

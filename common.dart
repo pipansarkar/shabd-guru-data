@@ -201,8 +201,10 @@ Future<Map<String, dynamic>> request(
       req.headers.contentType = ContentType.json;
       req.add(utf8.encode(jsonEncode(body)));
     }
-    final res = await req.close().timeout(const Duration(minutes: 3));
-    final text = await res.transform(utf8.decoder).join();
+    // A slow model must not stall the whole job.
+    const limit = Duration(seconds: 90);
+    final res = await req.close().timeout(limit);
+    final text = await res.transform(utf8.decoder).join().timeout(limit);
     if (res.statusCode != 200) {
       throw HttpException(
         '${res.statusCode}: ${text.substring(0, text.length.clamp(0, 300))}',
@@ -225,6 +227,10 @@ class Gemini {
   /// is never exceeded by retries.
   int _budget = 16;
 
+  /// Each job stops asking after this long and publishes what passed.
+  static const deadline = Duration(minutes: 8);
+  final _clock = Stopwatch()..start();
+
   /// Asks for JSON matching [schema] through the Interactions API, falling
   /// back to the next model when one is rate-limited or unavailable.
   Future<Object?> json(
@@ -236,6 +242,9 @@ class Gemini {
       if (_exhausted.contains(model)) continue;
       for (var attempt = 0; attempt < 2; attempt++) {
         if (_budget-- <= 0) throw StateError('Request budget used up');
+        if (_clock.elapsed > deadline) {
+          throw StateError('Time budget used up');
+        }
         // Stay well under free-tier requests-per-minute.
         await Future<void>.delayed(const Duration(seconds: 6));
         try {
