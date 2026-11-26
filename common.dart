@@ -8,11 +8,17 @@ import 'word_check.dart';
 final key = Platform.environment['GEMINI_API_KEY'] ?? '';
 final preferredModel = Platform.environment['GEMINI_MODEL'] ?? '';
 
-/// Skips "abatement" when "abate" exists, and vice versa.
-bool nearDuplicate(String w, Set<String> existing) => existing.any(
-  (e) =>
-      (e.length >= 5 && w.startsWith(e)) || (w.length >= 5 && e.startsWith(w)),
-);
+/// Skips word-family duplicates: "abatement" when "abate" exists,
+/// "endurance" when "endure" exists (shared prefix of at least 5 letters
+/// covering all but the last letter of the shorter word).
+bool nearDuplicate(String w, Set<String> existing) => existing.any((e) {
+  var n = 0;
+  while (n < w.length && n < e.length && w[n] == e[n]) {
+    n++;
+  }
+  final shorter = w.length < e.length ? w.length : e.length;
+  return n >= 5 && n >= shorter - 1;
+});
 
 const entriesSchema = {
   'type': 'ARRAY',
