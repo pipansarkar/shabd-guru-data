@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "updated": "2026-11-26",
+  "exams": [
+    {
+      "exam": "bank",
+      "name": "SBI Clerk Mains",
+      "date": "2026-11-26",
+      "tentative": true
+    },
+    {
+      "exam": "bank",
+      "name": "IBPS RRB Office Assistant Prelims",
+      "date": "2026-12-06",
+      "tentative": true
+    },
+    {
+      "exam": "bank",
+      "name": "IBPS RRB Officer Scale I Mains",
+      "date": "2026-12-20",
+      "tentative": true
+    },
+    {
+      "exam": "railway",
+      "name": "RRB NTPC Graduate CBT-1 (4th week of Dec)",
+      "date": "2026-12-21",
+      "tentative": true
+    },
+    {
+      "exam": "bank",
+      "name": "IBPS Clerk Mains",
+      "date": "2026-12-27",
+      "tentative": true
+    },
+    {
+      "exam": "bank",
+      "name": "IBPS RRB Office Assistant Mains",
+      "date": "2027-01-30",
+      "tentative": true
+    }
+  ]
+}
