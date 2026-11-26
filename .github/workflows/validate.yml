@@ -1,0 +1,36 @@
+# Safety net: every push to main is re-validated against the previous
+# version. If it fails, the push is reverted so installed apps never see it.
+name: Validate words
+on:
+  push:
+    branches: [main]
+    paths: [words.json, validate.dart]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: dart-lang/setup-dart@v1
+      - name: Validate against previous commit
+        id: check
+        run: |
+          if git cat-file -e HEAD~1:words.json 2>/dev/null; then
+            git show HEAD~1:words.json > /tmp/previous.json
+            dart run validate.dart words.json /tmp/previous.json
+          else
+            dart run validate.dart words.json
+          fi
+      - name: Revert invalid push
+        if: failure() && steps.check.conclusion == 'failure' && github.event_name == 'push'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git revert --no-edit HEAD
+          git push origin HEAD:main
