@@ -4,7 +4,7 @@ name: Validate words
 on:
   push:
     branches: [main]
-    paths: [words.json, validate.dart]
+    paths: [words.json, validate.dart, word_check.dart]
   workflow_dispatch:
 
 permissions:
@@ -21,7 +21,8 @@ jobs:
       - name: Validate against previous commit
         id: check
         run: |
-          if git cat-file -e HEAD~1:words.json 2>/dev/null; then
+          if git cat-file -e HEAD~1:words.json 2>/dev/null &&
+             ! git diff --quiet HEAD~1 HEAD -- words.json; then
             git show HEAD~1:words.json > /tmp/previous.json
             dart run validate.dart words.json /tmp/previous.json
           else

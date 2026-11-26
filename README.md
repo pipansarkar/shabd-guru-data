@@ -3,19 +3,29 @@
 `words.json` is the word list used by the Shabd Guru app. Installed apps
 download it within hours of a change (no app release needed).
 
-- **Updated automatically**: a scheduled agent appends 25 words a day until
-  the list reaches 2,000 words, following `AGENT.md`, and pushes to `main`.
-- **Validated twice**: the agent runs `validate.dart` before pushing, and the
-  GitHub Action re-runs it on every push and reverts any push that fails.
-- **Safe in the app**: the app ignores files that are older, smaller or
-  unreadable, and skips any single entry that breaks the rules.
+## Fully automatic, free
+- `.github/workflows/daily-words.yml` runs every day at 06:00 IST and adds
+  25 words until the list reaches 2,000, using the free Gemini API (Google
+  AI Studio) and free GitHub Actions minutes (public repo).
+- `generate.dart`: suggests frequent exam words -> writes cards in batches
+  of 5 -> a second reviewer pass corrects Bengali, Hindi, synonyms and
+  antonyms -> drops any card that breaks the rules.
+- Model names are discovered at run time (newest free Flash first); set the
+  repository variable `GEMINI_MODEL` to force one.
 
-Rules: existing words are never edited, reordered or removed (users'
-progress depends on them); `version` goes up with every change.
+Setup, once: add the repository secret `GEMINI_API_KEY`
+(https://aistudio.google.com/apikey). Run it by hand from the Actions tab
+("Daily words" -> Run workflow).
 
-    dart run validate.dart words.json [previous_words.json]
+## Safety (nobody reviews by hand)
+1. The daily job validates before pushing (`validate.dart`, same rules as
+   the app).
+2. `validate.yml` re-validates manual pushes and reverts any that fail.
+3. The app ignores files that are older, smaller or unreadable, and skips
+   any single entry that breaks the rules.
 
-`validate.dart` is generated from the app's `lib/data/word_check.dart`
-by `vocab_builder/tool/sync_validator.sh`; edit the app copy.
+Existing words are never edited, reordered or removed (users' progress
+depends on them); `version` goes up with every change.
 
-All meanings, translations, examples and memory tricks are original.
+`word_check.dart` is generated from the app's `lib/data/word_check.dart` by
+`vocab_builder/tool/sync_validator.sh`; edit the app copy.
