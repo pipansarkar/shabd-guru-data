@@ -64,6 +64,10 @@ List<String> checkWordEntry(Object? raw) {
   final ant = list('ant');
   final exams = list('exams', required: false);
   checkTranslations(raw['tr'], p);
+  final lvl = raw['lvl'];
+  if (lvl != null && (lvl is! int || lvl < 1 || lvl > 3)) {
+    p.add('lvl must be 1, 2 or 3');
+  }
 
   if (word.isNotEmpty && id != word.toLowerCase().replaceAll(' ', '-')) {
     p.add('id must be the lower-case word');
@@ -135,6 +139,11 @@ List<String> checkWordsFile(Object? raw, {Object? previous}) {
   }
   return out;
 }
+
+/// Level from how common a word is in real English (occurrences per
+/// million words): 1 basic, 2 intermediate, 3 advanced.
+int levelForFrequency(double perMillion) =>
+    perMillion >= 3 ? 1 : (perMillion >= 1 ? 2 : 3);
 
 final _date = RegExp(r'^\d{4}-\d{2}-\d{2}$');
 

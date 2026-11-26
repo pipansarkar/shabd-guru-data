@@ -55,6 +55,9 @@ jobs:
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
           DATAMUSE_API_KEY: ${{ secrets.DATAMUSE_API_KEY }}
         run: dart run generate.dart "${{ inputs.count || '25' }}"
+      - name: Levels (Datamuse word frequency)
+        continue-on-error: true
+        run: dart run levels.dart
       - name: Topic packs (idioms, OWS, phrasal verbs, spelling, confusables, roots)
         continue-on-error: true
         timeout-minutes: 12

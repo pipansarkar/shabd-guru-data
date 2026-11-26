@@ -12,6 +12,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'common.dart';
+import 'word_check.dart';
 
 const target = 2000;
 const batchSize = 5;
@@ -98,6 +99,8 @@ Return a JSON array of lower-case words, most useful first.''',
     try {
       for (final e in await makeCards(ai, batch)) {
         if (existing.contains(e['id'])) continue;
+        final f = freq[e['id']];
+        if (f != null) e['lvl'] = levelForFrequency(f);
         existing.add(e['id'] as String);
         added.add(e);
         if (added.length >= want) break;
