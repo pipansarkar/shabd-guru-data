@@ -194,8 +194,11 @@ For each word, in the sense most often tested in exams:
 - word: the word, lower case
 - pos: noun, verb, adjective or adverb
 - en: a short plain-English meaning, under 12 words, in your own words
-- bn: 1-3 natural Bengali equivalents, comma-separated, Bengali script only
-- hi: 1-3 natural Hindi equivalents, comma-separated, Devanagari only
+- bn: 1-3 short natural Bengali equivalents, comma-separated, Bengali
+  script only, each 1-3 words, the same part of speech as the English word
+  (an adjective's Bengali must be an adjective), no "বা" phrases, and
+  adding nothing beyond the English meaning
+- hi: the same rules in Hindi (Devanagari only, no "या" phrases)
 - syn: 3-4 synonyms, same part of speech, each able to replace the word
 - ant: 2-3 true antonyms, same part of speech (never overlapping syn)
 - ex: one original sentence (max 20 words) that uses the word itself;
@@ -215,6 +218,10 @@ Review each card below and return the corrected cards (same fields, same
 words, same order). Fix anything that is wrong:
 - bn must be what a Bengali speaker actually says for this sense, spelt
   correctly in Bengali script; not Hindi written in Bengali script.
+- bn and hi must mean exactly the English meaning: nothing narrower or
+  extra (e.g. don't turn "shockingly bad" into "a serious crime"), nothing
+  that only fits a different sense (e.g. "irritable" for "fastidious"), the
+  same part of speech, 1-3 short comma-separated equivalents, no "বা"/"या".
 - hi must be natural, correctly spelt Hindi in Devanagari.
 - If unsure of a translation, replace it with a simpler one you are sure of.
 - Every synonym must fit in the example sentence in place of the word;
@@ -280,7 +287,9 @@ Future<List<String>> pickModels() async {
   bool textFlash(String n) =>
       n.startsWith('gemini-') &&
       n.contains('flash') &&
-      !RegExp(r'image|tts|audio|live|embedding|thinking-exp').hasMatch(n);
+      !RegExp(
+        r'image|tts|audio|live|embedding|thinking-exp|omni|latest',
+      ).hasMatch(n);
   double ver(String n) =>
       double.tryParse(
         RegExp(r'gemini-(\d+(\.\d+)?)').firstMatch(n)?[1] ?? '',
@@ -295,7 +304,7 @@ Future<List<String>> pickModels() async {
     });
   return [
     if (preferredModel.isNotEmpty) preferredModel,
-    ...flash.where((m) => m != preferredModel).take(4),
+    ...flash.where((m) => m != preferredModel).take(6),
   ];
 }
 
@@ -311,6 +320,7 @@ Future<Map<String, dynamic>> request(
       Uri.parse('https://generativelanguage.googleapis.com/v1beta/$path'),
     );
     req.headers.set('x-goog-api-key', key);
+    req.headers.set('Api-Revision', '2026-05-20');
     if (body != null) {
       req.headers.contentType = ContentType.json;
       req.add(utf8.encode(jsonEncode(body)));
@@ -332,52 +342,89 @@ class Gemini {
   Gemini(this.models);
   final List<String> models;
 
-  /// Asks for JSON matching [schema]; tries each model in turn, waiting and
-  /// retrying on rate limits.
+  /// Models that hit their free daily limit this run; skipped from then on.
+  final Set<String> _exhausted = {};
+
+  /// Hard cap per run so the free daily quota (about 20 requests per model)
+  /// is never exceeded by retries.
+  int _budget = 16;
+
+  /// Asks for JSON matching [schema] through the Interactions API, falling
+  /// back to the next model when one is rate-limited or unavailable.
   Future<Object?> json(
     String prompt, {
     required Map<String, Object> schema,
   }) async {
     Object? lastError;
     for (final model in models) {
-      for (var attempt = 0; attempt < 3; attempt++) {
+      if (_exhausted.contains(model)) continue;
+      for (var attempt = 0; attempt < 2; attempt++) {
+        if (_budget-- <= 0) throw StateError('Request budget used up');
         // Stay well under free-tier requests-per-minute.
-        await Future<void>.delayed(const Duration(seconds: 7));
+        await Future<void>.delayed(const Duration(seconds: 6));
         try {
-          final res = await request('POST', 'models/$model:generateContent', {
-            'contents': [
-              {
-                'role': 'user',
-                'parts': [
-                  {'text': prompt},
-                ],
-              },
-            ],
-            'generationConfig': {
-              'temperature': 0.4,
-              'responseMimeType': 'application/json',
-              'responseSchema': schema,
+          final res = await request('POST', 'interactions', {
+            'model': model,
+            'input': prompt,
+            'store': false,
+            'response_format': {
+              'type': 'text',
+              'mime_type': 'application/json',
+              'schema': lowerSchema(schema),
             },
           });
-          final parts =
-              ((res['candidates'] as List).first as Map)['content']['parts']
-                  as List;
-          final text = parts.map((p) => (p as Map)['text'] ?? '').join();
-          return jsonDecode(text);
+          return jsonDecode(stripFences(outputText(res)));
         } catch (e) {
           lastError = e;
           final msg = '$e';
-          stderr.writeln('  $model attempt ${attempt + 1}: $msg');
-          if (msg.startsWith('HttpException: 429') ||
-              msg.contains('503') ||
-              msg.contains('500')) {
-            await Future<void>.delayed(Duration(seconds: 30 * (attempt + 1)));
-            continue;
+          stderr.writeln(
+            '  $model: ${msg.substring(0, msg.length.clamp(0, 300))}',
+          );
+          if (msg.contains('HttpException: 5') && attempt == 0) {
+            await Future<void>.delayed(const Duration(seconds: 20));
+            continue; // one retry on server errors
           }
-          break; // other errors: try the next model
+          if (msg.contains('HttpException: 429') ||
+              msg.contains('HttpException: 404') ||
+              msg.contains('HttpException: 403')) {
+            _exhausted.add(model);
+          }
+          break; // next model
         }
       }
     }
     throw StateError('All models failed: $lastError');
   }
+}
+
+/// Text of the model's answer: steps[type=model_output].content[type=text].
+String outputText(Map<String, dynamic> res) {
+  final b = StringBuffer();
+  for (final step in (res['steps'] as List? ?? const [])) {
+    if (step is! Map || step['type'] != 'model_output') continue;
+    for (final c in (step['content'] as List? ?? const [])) {
+      if (c is Map && c['type'] == 'text') b.write(c['text'] ?? '');
+    }
+  }
+  if (b.isEmpty) throw FormatException('no model_output text in response');
+  return b.toString();
+}
+
+String stripFences(String s) => s
+    .trim()
+    .replaceFirst(RegExp(r'^```(json)?\s*'), '')
+    .replaceFirst(RegExp(r'\s*```$'), '');
+
+/// JSON Schema with lower-case types ("ARRAY" -> "array").
+Object lowerSchema(Object? v) {
+  if (v is Map) {
+    return {
+      for (final e in v.entries)
+        e.key: e.key == 'type'
+            ? (e.value as String).toLowerCase()
+            : lowerSchema(e.value),
+    };
+  }
+  if (v is List) return [for (final x in v) lowerSchema(x)];
+  return v as Object;
 }
