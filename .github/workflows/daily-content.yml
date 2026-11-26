@@ -1,0 +1,76 @@
+# Every day at 06:00 IST: adds 25 new words, today's 10 editorial words and
+# fresh exam dates, using the free Gemini API (Google AI Studio) and the
+# free Datamuse API; validates everything and publishes to main. Free: GitHub
+# Actions is free for public repos and the Gemini free tier has no charge.
+#
+# Setup (once): add repository secret GEMINI_API_KEY (from
+# https://aistudio.google.com/apikey). Optional repository variable
+# GEMINI_MODEL to force a model; otherwise the newest free Flash is used.
+# Optional secret DATAMUSE_API_KEY (Datamuse needs a key from 1 Feb 2027;
+# without one the synonym check is skipped, not the run).
+name: Daily content
+on:
+  schedule:
+    - cron: "30 0 * * *" # 00:30 UTC = 06:00 IST
+  workflow_dispatch:
+    inputs:
+      count:
+        description: Words to add
+        default: "25"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: words
+  cancel-in-progress: false
+
+jobs:
+  add-words:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+      - name: Keep copies of the published files
+        run: |
+          rm -f .commit-message
+          cp words.json /tmp/words.json
+          [ -f editorial.json ] && cp editorial.json /tmp/editorial.json || true
+      - name: Exam dates
+        run: dart run exams.dart
+      - name: Editorial words
+        continue-on-error: true
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+          DATAMUSE_API_KEY: ${{ secrets.DATAMUSE_API_KEY }}
+        run: dart run editorial.dart
+      - name: Words
+        continue-on-error: true
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+          DATAMUSE_API_KEY: ${{ secrets.DATAMUSE_API_KEY }}
+        run: dart run generate.dart "${{ inputs.count || '25' }}"
+      - name: Validate against the published files
+        run: |
+          git diff --quiet words.json || dart run validate.dart words.json /tmp/words.json
+          if [ -f editorial.json ]; then
+            if [ -f /tmp/editorial.json ]; then
+              git diff --quiet editorial.json || dart run validate.dart editorial.json /tmp/editorial.json
+            else
+              dart run validate.dart editorial.json
+            fi
+          fi
+          if [ -f exams.json ]; then dart run validate.dart exams.json; fi
+      - name: Publish
+        run: |
+          for f in words.json editorial.json exams.json archive CHANGELOG.md; do
+            if [ -e "$f" ]; then git add -A "$f"; fi
+          done
+          if git diff --cached --quiet; then echo "Nothing new."; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -F .commit-message
+          git push origin HEAD:main

@@ -118,3 +118,78 @@ List<String> checkWordsFile(Object? raw, {Object? previous}) {
   }
   return out;
 }
+
+final _date = RegExp(r'^\d{4}-\d{2}-\d{2}$');
+
+/// Problems with editorial.json: days newest first, each with up to 10
+/// valid word entries that link to the newspaper article they came from.
+List<String> checkEditorialFile(Object? raw, {Object? previous}) {
+  if (raw is! Map) return ['file is not a JSON object'];
+  final out = <String>[];
+  if (raw['version'] is! int) out.add('version must be an integer');
+  final days = raw['days'];
+  if (days is! List) return [...out, 'days must be a list'];
+  String? last;
+  for (final d in days) {
+    if (d is! Map || d['date'] is! String || !_date.hasMatch(d['date'])) {
+      out.add('day without a valid date');
+      continue;
+    }
+    final date = d['date'] as String;
+    if (last != null && date.compareTo(last) >= 0) {
+      out.add('$date: days must be newest first, no repeats');
+    }
+    last = date;
+    final words = d['words'];
+    if (words is! List || words.isEmpty || words.length > 10) {
+      out.add('$date: needs 1-10 words');
+      continue;
+    }
+    final ids = <String>{};
+    for (final w in words) {
+      final id = w is Map && w['id'] is String ? w['id'] as String : '?';
+      for (final p in checkWordEntry(w)) {
+        out.add('$date $id: $p');
+      }
+      if (!ids.add(id)) out.add('$date $id: duplicate');
+      final src = w is Map ? w['source'] : null;
+      if (src is! Map ||
+          src['paper'] is! String ||
+          (src['headline'] as Object?) is! String ||
+          (src['headline'] as String).trim().isEmpty ||
+          src['url'] is! String ||
+          !(src['url'] as String).startsWith('https://')) {
+        out.add('$date $id: source needs paper, headline and https url');
+      }
+    }
+  }
+  if (previous is Map) {
+    final pv = previous['version'];
+    final v = raw['version'];
+    if (v is int && pv is int && v <= pv) {
+      out.add('version must be higher than $pv');
+    }
+  }
+  return out;
+}
+
+/// Problems with exams.json (upcoming exam dates for the countdown).
+List<String> checkExamsFile(Object? raw) {
+  if (raw is! Map) return ['file is not a JSON object'];
+  final out = <String>[];
+  if (raw['version'] is! int) out.add('version must be an integer');
+  final exams = raw['exams'];
+  if (exams is! List) return [...out, 'exams must be a list'];
+  for (final e in exams) {
+    if (e is! Map ||
+        e['name'] is! String ||
+        (e['name'] as String).trim().isEmpty ||
+        e['exam'] is! String ||
+        e['date'] is! String ||
+        !_date.hasMatch(e['date'] as String) ||
+        DateTime.tryParse(e['date'] as String) == null) {
+      out.add('bad exam entry: $e');
+    }
+  }
+  return out;
+}

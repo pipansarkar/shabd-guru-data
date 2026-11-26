@@ -4,7 +4,7 @@ name: Validate words
 on:
   push:
     branches: [main]
-    paths: [words.json, validate.dart, word_check.dart]
+    paths: [words.json, editorial.json, exams.json, validate.dart, word_check.dart]
   workflow_dispatch:
 
 permissions:
@@ -28,6 +28,9 @@ jobs:
           else
             dart run validate.dart words.json
           fi
+          for f in editorial.json exams.json; do
+            if [ -f "$f" ]; then dart run validate.dart "$f"; fi
+          done
       - name: Revert invalid push
         if: failure() && steps.check.conclusion == 'failure' && github.event_name == 'push'
         run: |
