@@ -1,5 +1,5 @@
-# Every day at 06:00 IST: adds 25 new words, today's 10 editorial words and
-# fresh exam dates, using the free Gemini API (Google AI Studio) and the
+# Every day at 06:00 IST: adds 25 new words, today's 10 editorial words,
+# translations into 10 more Indian languages and fresh exam dates, using the free Gemini API (Google AI Studio) and the
 # free Datamuse API; validates everything and publishes to main. Free: GitHub
 # Actions is free for public repos and the Gemini free tier has no charge.
 #
@@ -55,6 +55,24 @@ jobs:
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
           DATAMUSE_API_KEY: ${{ secrets.DATAMUSE_API_KEY }}
         run: dart run generate.dart "${{ inputs.count || '25' }}"
+      - name: Topic packs (idioms, OWS, phrasal verbs, spelling, confusables, roots)
+        continue-on-error: true
+        timeout-minutes: 12
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+        run: |
+          for p in idioms ows phrasal spelling confusables roots; do
+            [ -f "$p.json" ] && cp "$p.json" "/tmp/$p.json" || true
+          done
+          dart run packs.dart
+      - name: Translations (10 more languages)
+        continue-on-error: true
+        timeout-minutes: 12
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+        run: dart run translate.dart 80
       - name: Validate against the published files
         run: |
           git diff --quiet words.json || dart run validate.dart words.json /tmp/words.json
@@ -66,9 +84,18 @@ jobs:
             fi
           fi
           if [ -f exams.json ]; then dart run validate.dart exams.json; fi
+          for p in idioms ows phrasal spelling confusables roots; do
+            if [ -n "$(git status --porcelain -- "$p.json")" ]; then
+              if [ -f "/tmp/$p.json" ]; then
+                dart run validate.dart "$p.json" "/tmp/$p.json"
+              else
+                dart run validate.dart "$p.json"
+              fi
+            fi
+          done
       - name: Publish
         run: |
-          for f in words.json editorial.json exams.json archive CHANGELOG.md; do
+          for f in words.json editorial.json exams.json idioms.json ows.json phrasal.json spelling.json confusables.json roots.json archive CHANGELOG.md; do
             if [ -e "$f" ]; then git add -A "$f"; fi
           done
           if git diff --cached --quiet; then echo "Nothing new."; exit 0; fi

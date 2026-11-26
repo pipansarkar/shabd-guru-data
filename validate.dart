@@ -16,10 +16,13 @@ void main(List<String> args) {
       ? jsonDecode(File(args[1]).readAsStringSync())
       : null;
   final name = args[0].split('/').last;
+  final pack = name.replaceAll('.json', '');
   final problems = name.startsWith('editorial')
       ? checkEditorialFile(next, previous: prev)
       : name.startsWith('exams')
       ? checkExamsFile(next)
+      : packTargets.containsKey(pack)
+      ? checkPackFile(next, pack, previous: prev)
       : checkWordsFile(next, previous: prev);
   if (problems.isEmpty) {
     stdout.writeln('OK: $name version ${next['version']}');

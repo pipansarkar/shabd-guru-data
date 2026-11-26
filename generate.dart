@@ -46,8 +46,10 @@ Future<void> main(List<String> args) async {
     letters[(version * 2 + 1) % letters.length],
   ];
   final have = existing.where((id) => pick.any(id.startsWith)).toList()..sort();
-  final suggested = await ai.json(
-    '''
+  final Object? suggested;
+  try {
+    suggested = await ai.json(
+      '''
 You are building a vocabulary list for Indian competitive exams (IBPS/SBI
 Bank PO and Clerk, RBI, SSC CGL/CHSL, CAT, CUET).
 List 60 single English words starting with the letter "${pick[0]}" or
@@ -57,11 +59,15 @@ editorials. Prefer genuinely high-frequency exam words; no proper nouns, no
 phrases, no obscure or archaic words.
 Do NOT include any of these (already in the list): ${have.join(', ')}.
 Return a JSON array of lower-case words, most useful first.''',
-    schema: {
-      'type': 'ARRAY',
-      'items': {'type': 'STRING'},
-    },
-  );
+      schema: {
+        'type': 'ARRAY',
+        'items': {'type': 'STRING'},
+      },
+    );
+  } catch (e) {
+    stdout.writeln('Gemini unavailable ($e); no changes today.');
+    return;
+  }
   final candidates = <String>[];
   for (final s in (suggested as List).cast<String>()) {
     final w = s.trim().toLowerCase();

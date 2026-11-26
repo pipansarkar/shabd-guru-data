@@ -78,8 +78,10 @@ Future<void> main() async {
     for (var i = 0; i < items.length; i++)
       '[$i] ${items[i].title} — ${items[i].summary}',
   ].join('\n');
-  final picked = await ai.json(
-    '''
+  final Object? picked;
+  try {
+    picked = await ai.json(
+      '''
 These are today's newspaper editorial headlines and one-line summaries:
 $listing
 
@@ -90,18 +92,22 @@ words). Spread them across different items. Give each word in its base
 dictionary form (e.g. "deplore" for "deplored") and the [index] of the item
 it appears in.
 Do not choose any of: ${recent.join(', ')}.''',
-    schema: {
-      'type': 'ARRAY',
-      'items': {
-        'type': 'OBJECT',
-        'properties': {
-          'word': {'type': 'STRING'},
-          'item': {'type': 'INTEGER'},
+      schema: {
+        'type': 'ARRAY',
+        'items': {
+          'type': 'OBJECT',
+          'properties': {
+            'word': {'type': 'STRING'},
+            'item': {'type': 'INTEGER'},
+          },
+          'required': ['word', 'item'],
         },
-        'required': ['word', 'item'],
       },
-    },
-  );
+    );
+  } catch (e) {
+    stdout.writeln('Gemini unavailable ($e); no changes today.');
+    return;
+  }
   final chosen = <String, Item>{};
   for (final p in (picked as List).cast<Map<String, dynamic>>()) {
     final w = (p['word'] as String? ?? '').trim().toLowerCase();
@@ -261,26 +267,4 @@ DateTime? parseRfc822(String s) {
     t = t.subtract(Duration(minutes: z.startsWith('+') ? mins : -mins));
   }
   return t;
-}
-
-/// One word per line, like words.json.
-String formatDays(Map<String, dynamic> data) {
-  final b = StringBuffer('{\n');
-  b.writeln('  "version": ${jsonEncode(data['version'])},');
-  b.writeln('  "updated": ${jsonEncode(data['updated'])},');
-  b.writeln('  "days": [');
-  final days = data['days'] as List;
-  for (var d = 0; d < days.length; d++) {
-    final day = days[d] as Map;
-    b.writeln('    {"date": ${jsonEncode(day['date'])}, "words": [');
-    final words = day['words'] as List;
-    for (var i = 0; i < words.length; i++) {
-      b.write('      ${jsonEncode(words[i])}');
-      b.writeln(i == words.length - 1 ? '' : ',');
-    }
-    b.writeln(d == days.length - 1 ? '    ]}' : '    ]},');
-  }
-  b.writeln('  ]');
-  b.writeln('}');
-  return b.toString();
 }

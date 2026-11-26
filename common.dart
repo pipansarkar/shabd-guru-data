@@ -186,7 +186,7 @@ Future<List<String>> pickModels() async {
     });
   return [
     if (preferredModel.isNotEmpty) preferredModel,
-    ...flash.where((m) => m != preferredModel).take(6),
+    ...flash.where((m) => m != preferredModel).take(10),
   ];
 }
 
@@ -445,3 +445,25 @@ String todayIst() => DateTime.now()
 /// Adds a line to the commit message shared by the day's jobs.
 void addCommitLine(String line) =>
     File('.commit-message').writeAsStringSync('$line\n', mode: FileMode.append);
+
+/// One word per line, like words.json.
+String formatDays(Map<String, dynamic> data) {
+  final b = StringBuffer('{\n');
+  b.writeln('  "version": ${jsonEncode(data['version'])},');
+  b.writeln('  "updated": ${jsonEncode(data['updated'])},');
+  b.writeln('  "days": [');
+  final days = data['days'] as List;
+  for (var d = 0; d < days.length; d++) {
+    final day = days[d] as Map;
+    b.writeln('    {"date": ${jsonEncode(day['date'])}, "words": [');
+    final words = day['words'] as List;
+    for (var i = 0; i < words.length; i++) {
+      b.write('      ${jsonEncode(words[i])}');
+      b.writeln(i == words.length - 1 ? '' : ',');
+    }
+    b.writeln(d == days.length - 1 ? '    ]}' : '    ]},');
+  }
+  b.writeln('  ]');
+  b.writeln('}');
+  return b.toString();
+}
