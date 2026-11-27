@@ -375,8 +375,11 @@ List<String> checkPackItem(Object? raw, String pack) {
     case 'idioms' || 'phrasal':
       if (parts.length < 2) p.add('term must be a phrase');
       // The example must use the phrase: its longest word must appear.
-      if (parts.isNotEmpty && ex.isNotEmpty) {
-        final longest = parts.reduce((a, b) => b.length > a.length ? b : a);
+      // Placeholders such as "one's" / "someone's" change in use
+      // ("his heels"), so they are skipped.
+      final content = parts.where((w) => !w.contains("'")).toList();
+      if (content.isNotEmpty && ex.isNotEmpty) {
+        final longest = content.reduce((a, b) => b.length > a.length ? b : a);
         if (!ex.contains(_stem(longest))) p.add('example does not use term');
       }
     case 'ows' || 'spelling':
