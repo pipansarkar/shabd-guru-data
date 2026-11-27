@@ -1,13 +1,7 @@
 {
-  "version": 1,
-  "updated": "2026-11-26",
+  "version": 2,
+  "updated": "2026-11-27",
   "exams": [
-    {
-      "exam": "bank",
-      "name": "SBI Clerk Mains",
-      "date": "2026-11-26",
-      "tentative": true
-    },
     {
       "exam": "bank",
       "name": "IBPS RRB Office Assistant Prelims",
