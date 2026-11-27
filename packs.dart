@@ -433,19 +433,3 @@ void _dropBadTranslations(Map<String, dynamic> e, String pack) {
     );
   }
 }
-
-/// One item per line.
-String formatItems(Map<String, dynamic> data) {
-  final b = StringBuffer('{\n');
-  b.writeln('  "version": ${jsonEncode(data['version'])},');
-  b.writeln('  "updated": ${jsonEncode(data['updated'])},');
-  b.writeln('  "items": [');
-  final items = data['items'] as List;
-  for (var i = 0; i < items.length; i++) {
-    b.write('    ${jsonEncode(items[i])}');
-    b.writeln(i == items.length - 1 ? '' : ',');
-  }
-  b.writeln('  ]');
-  b.writeln('}');
-  return b.toString();
-}

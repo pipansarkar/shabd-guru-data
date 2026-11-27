@@ -12,6 +12,51 @@ final _bengali = RegExp(r'[ঀ-৿]');
 final _devanagari = RegExp(r'[ऀ-ॿ]');
 final _latin = RegExp(r'[A-Za-z]');
 
+/// Characters allowed in any script: spaces, digits, punctuation, dandas,
+/// zero-width joiners.
+final _neutral = RegExp(
+  "[\\s0-9.,;:!?()\\[\\]'\"/\\-\u2013\u2014\u2018\u2019\u201c\u201d\u2026\u0964\u0965\u200c\u200d]",
+);
+
+/// True when [v] has at least one letter of [script] and every other
+/// character is either in [script] or neutral (no mixed scripts such as
+/// Malayalam letters inside Assamese).
+bool onlyScript(String v, RegExp script) {
+  var any = false;
+  for (final ch in v.runes.map(String.fromCharCode)) {
+    if (_neutral.hasMatch(ch)) continue;
+    if (!script.hasMatch(ch)) return false;
+    any = true;
+  }
+  return any;
+}
+
+/// [raw] with any extra-language translation that breaks the script rules
+/// removed, so one bad language never hides the whole card. Also cleans
+/// derived words in Word Roots lessons.
+Map<String, dynamic> withoutBadTranslations(Map raw) {
+  Map<String, dynamic> clean(Map m) {
+    final out = Map<String, dynamic>.from(m);
+    final tr = m['tr'];
+    if (tr is Map) {
+      out['tr'] = {
+        for (final e in tr.entries)
+          if (translationScripts[e.key] case final script?)
+            if (e.value is String && onlyScript(e.value as String, script))
+              '${e.key}': e.value,
+      };
+    }
+    return out;
+  }
+
+  final out = clean(raw);
+  final words = raw['words'];
+  if (words is List && words.isNotEmpty && words.first is Map) {
+    out['words'] = [for (final w in words) w is Map ? clean(w) : w];
+  }
+  return out;
+}
+
 /// Extra meaning languages, stored in an entry's optional `tr` map
 /// (language code -> meaning), each with the Unicode script it must use.
 /// Bengali (`bn`) and Hindi (`hi`) are required top-level fields instead.
@@ -74,10 +119,10 @@ List<String> checkWordEntry(Object? raw) {
   }
   if (pos.isNotEmpty && !wordPos.contains(pos)) p.add('pos "$pos" unknown');
   if (en.isNotEmpty && !_latin.hasMatch(en)) p.add('en not English');
-  if (bn.isNotEmpty && !_bengali.hasMatch(bn)) p.add('bn not Bengali script');
-  if (hi.isNotEmpty && !_devanagari.hasMatch(hi)) p.add('hi not Devanagari');
-  if (bn.isNotEmpty && _devanagari.hasMatch(bn)) p.add('bn contains Hindi');
-  if (hi.isNotEmpty && _bengali.hasMatch(hi)) p.add('hi contains Bengali');
+  if (bn.isNotEmpty && !onlyScript(bn, _bengali)) {
+    p.add('bn not Bengali script');
+  }
+  if (hi.isNotEmpty && !onlyScript(hi, _devanagari)) p.add('hi not Devanagari');
   if (syn.toSet().intersection(ant.toSet()).isNotEmpty) {
     p.add('a word is both synonym and antonym');
   }
@@ -234,7 +279,7 @@ void checkTranslations(Object? tr, List<String> p) {
       p.add('tr: unknown language "${e.key}"');
     } else if (v is! String || v.trim().isEmpty) {
       p.add('tr.${e.key} empty');
-    } else if (!script.hasMatch(v) || _latin.hasMatch(v)) {
+    } else if (!onlyScript(v, script)) {
       p.add('tr.${e.key} not in its script');
     }
   }
@@ -315,10 +360,10 @@ List<String> checkPackItem(Object? raw, String pack) {
     p.add('id must be ${packId(term)}');
   }
   if (en.isNotEmpty && !_latin.hasMatch(en)) p.add('en not English');
-  if (bn.isNotEmpty && !_bengali.hasMatch(bn)) p.add('bn not Bengali script');
-  if (hi.isNotEmpty && !_devanagari.hasMatch(hi)) p.add('hi not Devanagari');
-  if (bn.isNotEmpty && _devanagari.hasMatch(bn)) p.add('bn contains Hindi');
-  if (hi.isNotEmpty && _bengali.hasMatch(hi)) p.add('hi contains Bengali');
+  if (bn.isNotEmpty && !onlyScript(bn, _bengali)) {
+    p.add('bn not Bengali script');
+  }
+  if (hi.isNotEmpty && !onlyScript(hi, _devanagari)) p.add('hi not Devanagari');
   checkTranslations(raw['tr'], p);
   final exams = raw['exams'];
   if (exams != null &&
@@ -426,10 +471,10 @@ List<String> _checkRoot(Map raw) {
     final bn = str(m, 'bn', at);
     final hi = str(m, 'hi', at);
     if (en.isNotEmpty && !_latin.hasMatch(en)) p.add('${at}en not English');
-    if (bn.isNotEmpty && (!_bengali.hasMatch(bn) || _devanagari.hasMatch(bn))) {
+    if (bn.isNotEmpty && !onlyScript(bn, _bengali)) {
       p.add('${at}bn not Bengali script');
     }
-    if (hi.isNotEmpty && (!_devanagari.hasMatch(hi) || _bengali.hasMatch(hi))) {
+    if (hi.isNotEmpty && !onlyScript(hi, _devanagari)) {
       p.add('${at}hi not Devanagari');
     }
     final tp = <String>[];

@@ -36,116 +36,166 @@ Future<void> main(List<String> args) async {
   }
   final maxWords = args.isNotEmpty ? int.parse(args.first) : 80;
 
-  final wordsFile = File('words.json');
-  final words =
-      jsonDecode(wordsFile.readAsStringSync()) as Map<String, dynamic>;
-  final edFile = File('editorial.json');
-  final editorial = edFile.existsSync()
-      ? jsonDecode(edFile.readAsStringSync()) as Map<String, dynamic>
-      : null;
+  // Every file with cards, and how to check and save it.
+  final sources = <_Source>[
+    if (File('editorial.json').existsSync())
+      _Source(
+        'editorial.json',
+        (d) => [
+          for (final day in (d['days'] as List).take(1))
+            ...((day as Map)['words'] as List).cast<Map<String, dynamic>>(),
+        ],
+        (e) => checkWordEntry(e),
+        formatDays,
+      ),
+    _Source(
+      'words.json',
+      (d) => (d['words'] as List).cast<Map<String, dynamic>>(),
+      (e) => checkWordEntry(e),
+      formatWords,
+    ),
+    for (final pack in ['idioms', 'ows', 'phrasal', 'spelling', 'confusables'])
+      if (File('$pack.json').existsSync())
+        _Source(
+          '$pack.json',
+          (d) => (d['items'] as List).cast<Map<String, dynamic>>(),
+          (e) => checkPackItem(e, pack),
+          formatItems,
+        ),
+  ];
+  for (final s in sources) {
+    s.data =
+        jsonDecode(File(s.file).readAsStringSync()) as Map<String, dynamic>;
+  }
+
+  // 1. Remove translations that break the script rules (e.g. Gujarati
+  // letters inside Odia); step 2 translates them again.
+  var cleaned = 0;
+  for (final s in sources) {
+    for (final e in s.entries()) {
+      final before = (e['tr'] as Map?)?.length ?? 0;
+      final fixed = withoutBadTranslations(e)['tr'];
+      if (fixed is Map && fixed.length < before) {
+        e['tr'] = fixed;
+        cleaned += before - fixed.length;
+        s.touched = true;
+      }
+    }
+  }
+  if (cleaned > 0) stdout.writeln('Removed $cleaned bad translations.');
 
   bool missing(Map e) {
     final tr = (e['tr'] as Map?) ?? const {};
     return languages.keys.any((k) => tr[k] == null);
   }
 
-  // Entries to translate, by reference so edits land in the loaded files.
-  final todo = <Map<String, dynamic>>[
-    if (editorial != null)
-      for (final d in (editorial['days'] as List).take(1))
-        for (final w in (d as Map)['words'] as List)
-          if (missing(w as Map)) w as Map<String, dynamic>,
-    for (final w in words['words'] as List)
-      if (missing(w as Map)) w as Map<String, dynamic>,
+  // 2. Entries still missing a language: today's editorial words first,
+  // then words, then topic packs. By reference, so edits land in place.
+  final todo = <(Map<String, dynamic>, _Source)>[
+    for (final s in sources)
+      for (final e in s.entries())
+        if (missing(e)) (e, s),
   ].take(maxWords).toList();
-  if (todo.isEmpty) {
-    stdout.writeln('Every word already has all languages.');
-    return;
-  }
-  stdout.writeln('Translating ${todo.length} words.');
 
-  final ai = Gemini(await pickModels());
   var done = 0;
-  var touchedWords = false, touchedEditorial = false;
-  final edIds = {
-    if (editorial != null)
-      for (final d in (editorial['days'] as List).take(1))
-        for (final w in (d as Map)['words'] as List) (w as Map)['id'],
-  };
-  for (var i = 0; i < todo.length; i += batchSize) {
-    final batch = todo.skip(i).take(batchSize).toList();
-    final input = [
-      for (final e in batch)
-        {
-          'word': e['word'],
-          'pos': e['pos'],
-          'meaning': e['en'],
-          'example': e['ex'],
-        },
-    ];
+  if (todo.isNotEmpty) {
+    stdout.writeln('Translating ${todo.length} cards.');
+    final Gemini ai;
     try {
-      final draft = await ai.json(
-        _translatePrompt(jsonEncode(input)),
-        schema: _schema,
-      );
-      final reviewed = await ai.json(
-        _reviewPrompt(jsonEncode(input), jsonEncode(draft)),
-        schema: _schema,
-      );
-      final byWord = {
-        for (final r in (reviewed as List).cast<Map<String, dynamic>>())
-          '${r['word']}'.trim().toLowerCase(): r,
-      };
-      for (final e in batch) {
-        final r = byWord[e['word']];
-        if (r == null) continue;
-        final tr = Map<String, dynamic>.from((e['tr'] as Map?) ?? const {});
-        var added = 0;
-        for (final code in languages.keys) {
-          if (tr[code] != null) continue;
-          final v = '${r[code] ?? ''}'.trim();
-          if (v.isEmpty) continue;
-          // Keep a language only if the entry still passes every rule.
-          final trial = {
-            ...e,
-            'tr': {...tr, code: v},
-          };
-          if (checkWordEntry(trial).isEmpty) {
-            tr[code] = v;
-            added++;
-          } else {
-            stdout.writeln('  ${e['word']}.$code rejected: $v');
-          }
-        }
-        if (added > 0) {
-          e['tr'] = tr;
-          done++;
-          if (edIds.contains(e['id'])) {
-            touchedEditorial = true;
-          } else {
-            touchedWords = true;
-          }
-        }
-      }
+      ai = Gemini(await pickModels());
     } catch (e) {
-      stderr.writeln('Batch failed: $e');
-      if ('$e'.contains('All models failed') || '$e'.contains('budget')) break;
+      stdout.writeln('Gemini unavailable ($e).');
+      _save(sources, cleaned, 0);
+      return;
     }
+    String label(Map e) => '${e['word'] ?? e['term']}'.toLowerCase();
+    for (var i = 0; i < todo.length; i += batchSize) {
+      final batch = todo.skip(i).take(batchSize).toList();
+      final input = [
+        for (final (e, _) in batch)
+          {
+            'word': label(e),
+            'pos': e['pos'] ?? 'phrase',
+            'meaning': e['en'],
+            'example': e['ex'],
+          },
+      ];
+      try {
+        final draft = await ai.json(
+          _translatePrompt(jsonEncode(input)),
+          schema: _schema,
+        );
+        final reviewed = await ai.json(
+          _reviewPrompt(jsonEncode(input), jsonEncode(draft)),
+          schema: _schema,
+        );
+        final byWord = {
+          for (final r in (reviewed as List).cast<Map<String, dynamic>>())
+            '${r['word']}'.trim().toLowerCase(): r,
+        };
+        for (final (e, s) in batch) {
+          final r = byWord[label(e)];
+          if (r == null) continue;
+          final tr = Map<String, dynamic>.from((e['tr'] as Map?) ?? const {});
+          var added = 0;
+          for (final code in languages.keys) {
+            if (tr[code] != null) continue;
+            final v = '${r[code] ?? ''}'.trim();
+            if (v.isEmpty) continue;
+            // Keep a language only if the card still passes every rule.
+            if (s.check({
+              ...e,
+              'tr': {...tr, code: v},
+            }).isEmpty) {
+              tr[code] = v;
+              added++;
+            } else {
+              stdout.writeln('  ${label(e)}.$code rejected: $v');
+            }
+          }
+          if (added > 0) {
+            e['tr'] = tr;
+            done++;
+            s.touched = true;
+          }
+        }
+      } catch (e) {
+        stderr.writeln('Batch failed: $e');
+        if ('$e'.contains('All models failed') || '$e'.contains('budget'))
+          break;
+      }
+    }
+  } else {
+    stdout.writeln('Every card already has all languages.');
   }
+  _save(sources, cleaned, done);
+}
 
+class _Source {
+  _Source(this.file, this.entriesOf, this.check, this.format);
+  final String file;
+  final List<Map<String, dynamic>> Function(Map<String, dynamic>) entriesOf;
+  final List<String> Function(Map<String, dynamic>) check;
+  final String Function(Map<String, dynamic>) format;
+  late Map<String, dynamic> data;
+  bool touched = false;
+  List<Map<String, dynamic>> entries() => entriesOf(data);
+}
+
+void _save(List<_Source> sources, int cleaned, int done) {
   final today = todayIst();
-  if (touchedWords) {
-    words['version'] = (words['version'] as int) + 1;
-    words['updated'] = today;
-    wordsFile.writeAsStringSync(formatWords(words));
+  for (final s in sources.where((s) => s.touched)) {
+    s.data['version'] = (s.data['version'] as int) + 1;
+    s.data['updated'] = today;
+    File(s.file).writeAsStringSync(s.format(s.data));
   }
-  if (touchedEditorial && editorial != null) {
-    editorial['version'] = (editorial['version'] as int) + 1;
-    editorial['updated'] = today;
-    edFile.writeAsStringSync(formatDays(editorial));
+  if (cleaned > 0 || done > 0) {
+    addCommitLine(
+      'Translations: $done cards in more languages'
+      '${cleaned > 0 ? ', $cleaned bad ones removed' : ''}',
+    );
   }
-  if (done > 0) addCommitLine('Translations: $done words in more languages');
-  stdout.writeln('Translated $done words.');
+  stdout.writeln('Translated $done cards; removed $cleaned bad translations.');
 }
 
 final _schema = {
