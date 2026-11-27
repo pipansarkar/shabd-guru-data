@@ -11,7 +11,10 @@
 name: Daily content
 on:
   schedule:
-    - cron: "30 0 * * *" # 00:30 UTC = 06:00 IST
+    # Off-peak minutes: GitHub delays jobs that start on the hour. The
+    # second run is a backup; each job skips itself if it already ran today.
+    - cron: "17 22 * * *" # 03:47 IST
+    - cron: "13 3 * * *" # 08:43 IST
   workflow_dispatch:
     inputs:
       count:
@@ -54,7 +57,12 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
           DATAMUSE_API_KEY: ${{ secrets.DATAMUSE_API_KEY }}
-        run: dart run generate.dart "${{ inputs.count || '25' }}"
+        run: |
+          if [ -n "${{ inputs.count }}" ]; then
+            dart run generate.dart "${{ inputs.count }}"
+          else
+            dart run generate.dart
+          fi
       - name: Levels (Datamuse word frequency)
         continue-on-error: true
         run: dart run levels.dart

@@ -223,6 +223,12 @@ Future<void> main(List<String> args) async {
     stdout.writeln('Every pack is full.');
     return;
   }
+  // A second (backup) run on the same day adds nothing.
+  if (args.isEmpty &&
+      packTargets.keys.any((k) => load(k)['grown'] == todayIst())) {
+    stdout.writeln('A topic pack was already grown today.');
+    return;
+  }
   final spec = specs[pack]!;
   final data = load(pack);
   final items = (data['items'] as List).cast<Map<String, dynamic>>();
@@ -334,6 +340,7 @@ ${jsonEncode(draft)}''', schema: schema);
   final out = {
     'version': (data['version'] as int) + 1,
     'updated': todayIst(),
+    'grown': todayIst(),
     'items': [...items, ...added],
   };
   final problems = checkPackFile(out, pack, previous: data);

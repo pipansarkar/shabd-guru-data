@@ -25,6 +25,11 @@ Future<void> main(List<String> args) async {
   final file = File('words.json');
   final data = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
   final words = data['words'] as List;
+  // A second (backup) run on the same day adds nothing.
+  if (args.isEmpty && data['added'] == todayIst()) {
+    stdout.writeln('Words already added today.');
+    return;
+  }
   final want = (args.isNotEmpty ? int.parse(args.first) : 25).clamp(
     0,
     target - words.length,
@@ -123,6 +128,7 @@ Return a JSON array of lower-case words, most useful first.''',
     ...data,
     'version': next,
     'updated': today,
+    'added': today,
     'words': [...words, ...added],
   };
   file.writeAsStringSync(formatWords(out));

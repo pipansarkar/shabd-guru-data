@@ -471,8 +471,9 @@ String formatDays(Map<String, dynamic> data) {
 /// One item per line.
 String formatItems(Map<String, dynamic> data) {
   final b = StringBuffer('{\n');
-  b.writeln('  "version": ${jsonEncode(data['version'])},');
-  b.writeln('  "updated": ${jsonEncode(data['updated'])},');
+  for (final e in data.entries.where((e) => e.key != 'items')) {
+    b.writeln('  ${jsonEncode(e.key)}: ${jsonEncode(e.value)},');
+  }
   b.writeln('  "items": [');
   final items = data['items'] as List;
   for (var i = 0; i < items.length; i++) {
