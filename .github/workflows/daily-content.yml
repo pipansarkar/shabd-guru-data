@@ -1,5 +1,5 @@
 # Every day at 06:00 IST: adds 25 new words, today's 10 editorial words,
-# translations into 10 more Indian languages and fresh exam dates, using the free Gemini API (Google AI Studio) and the
+# translations into 10 more Indian languages, using the free Gemini API (Google AI Studio) and the
 # free Datamuse API; validates everything and publishes to main. Free: GitHub
 # Actions is free for public repos and the Gemini free tier has no charge.
 #
@@ -40,8 +40,6 @@ jobs:
           rm -f .commit-message
           cp words.json /tmp/words.json
           [ -f editorial.json ] && cp editorial.json /tmp/editorial.json || true
-      - name: Exam dates
-        run: dart run exams.dart
       - name: Editorial words
         continue-on-error: true
         timeout-minutes: 12
@@ -94,7 +92,6 @@ jobs:
               dart run validate.dart editorial.json
             fi
           fi
-          if [ -f exams.json ]; then dart run validate.dart exams.json; fi
           for p in idioms ows phrasal spelling confusables roots; do
             if [ -n "$(git status --porcelain -- "$p.json")" ]; then
               if [ -f "/tmp/$p.json" ]; then
@@ -106,7 +103,7 @@ jobs:
           done
       - name: Publish
         run: |
-          for f in words.json editorial.json exams.json idioms.json ows.json phrasal.json spelling.json confusables.json roots.json archive CHANGELOG.md; do
+          for f in words.json editorial.json idioms.json ows.json phrasal.json spelling.json confusables.json roots.json archive CHANGELOG.md; do
             if [ -e "$f" ]; then git add -A "$f"; fi
           done
           if git diff --cached --quiet; then echo "Nothing new."; exit 0; fi

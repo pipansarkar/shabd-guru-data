@@ -8,7 +8,6 @@ a change (no app release needed).
 | `words.json` | main word list (grows to 2,000) | `generate.dart` |
 | `editorial.json` | Daily Editorial Words, last 30 days | `editorial.dart` |
 | `archive/editorial-YYYY-MM.json` | every editorial day, kept | `editorial.dart` |
-| `exams.json` | upcoming exam dates for the countdown | `exams.dart` |
 | `idioms.json` | idioms & phrases (grows to 600) | `packs.dart` |
 | `ows.json` | one word substitution (800) | `packs.dart` |
 | `phrasal.json` | phrasal verbs (300) | `packs.dart` |
@@ -28,15 +27,14 @@ lesson structure or word list is taken from any book.
 
 ## Fully automatic, free
 `.github/workflows/daily-content.yml` runs every day at 06:00 IST:
-1. **Exam dates**: copied from `pipansarkar/speed-maths-data` (no AI).
-2. **Editorial words**: reads editorial RSS feeds (The Hindu, The Indian
+1. **Editorial words**: reads editorial RSS feeds (The Hindu, The Indian
    Express, Hindustan Times, Mint), picks 10 exam-worthy words that appear
    in today's headlines/summaries and writes original cards for them.
    Only each article's headline and link are published; editorial text is
    never copied.
-3. **Words**: suggests frequent exam words, ranks them by real-world
+2. **Words**: suggests frequent exam words, ranks them by real-world
    frequency, writes 25 cards.
-4. **Levels**, **topic packs** (one pack a day, rotating) and
+3. **Levels**, **topic packs** (one pack a day, rotating) and
    **translations** use the rest of the free daily quota.
 
 Cards are written by the free Gemini API (Google AI Studio), corrected by a
