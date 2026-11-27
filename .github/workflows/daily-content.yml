@@ -31,7 +31,7 @@ concurrency:
 jobs:
   add-words:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
       - uses: dart-lang/setup-dart@v1
@@ -64,24 +64,35 @@ jobs:
       - name: Levels (Datamuse word frequency)
         continue-on-error: true
         run: dart run levels.dart
-      - name: Topic packs (idioms, OWS, phrasal verbs, spelling, confusables, roots)
+      - name: Cloze passage
+        continue-on-error: true
+        timeout-minutes: 14
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+        run: |
+          [ -f passages.json ] && cp passages.json /tmp/passages.json || true
+          dart run cloze.dart
+      - name: Topic packs (idioms, OWS, phrasal verbs, spelling, confusables, roots, foreign, errors)
         continue-on-error: true
         timeout-minutes: 12
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
         run: |
-          for p in idioms ows phrasal spelling confusables roots; do
+          for p in idioms ows phrasal spelling confusables roots foreign errors; do
             [ -f "$p.json" ] && cp "$p.json" "/tmp/$p.json" || true
           done
+          # Two topics a run (the second uses Flash-Lite quota if needed).
           dart run packs.dart
+          dart run packs.dart --second || true
       - name: Translations (10 more languages)
         continue-on-error: true
         timeout-minutes: 12
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
-        run: dart run translate.dart 80
+        run: dart run translate.dart 120
       - name: Validate against the published files
         run: |
           git diff --quiet words.json || dart run validate.dart words.json /tmp/words.json
@@ -92,7 +103,7 @@ jobs:
               dart run validate.dart editorial.json
             fi
           fi
-          for p in idioms ows phrasal spelling confusables roots; do
+          for p in idioms ows phrasal spelling confusables roots foreign errors passages; do
             if [ -n "$(git status --porcelain -- "$p.json")" ]; then
               if [ -f "/tmp/$p.json" ]; then
                 dart run validate.dart "$p.json" "/tmp/$p.json"
@@ -103,7 +114,7 @@ jobs:
           done
       - name: Publish
         run: |
-          for f in words.json editorial.json idioms.json ows.json phrasal.json spelling.json confusables.json roots.json archive CHANGELOG.md; do
+          for f in words.json editorial.json idioms.json ows.json phrasal.json spelling.json confusables.json roots.json foreign.json errors.json passages.json archive CHANGELOG.md; do
             if [ -e "$f" ]; then git add -A "$f"; fi
           done
           if git diff --cached --quiet; then echo "Nothing new."; exit 0; fi

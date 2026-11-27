@@ -294,6 +294,8 @@ const packTargets = {
   'spelling': 300,
   'confusables': 200,
   'roots': 150,
+  'foreign': 150,
+  'errors': 400,
 };
 
 /// Themed units of the Word Roots course, in teaching order.
@@ -372,6 +374,37 @@ List<String> checkPackItem(Object? raw, String pack) {
   }
   final parts = term.split(' ').where((w) => w.isNotEmpty).toList();
   switch (pack) {
+    case 'foreign':
+      // Foreign words and phrases (bona fide, ad hoc, faux pas).
+      final content = parts.where((w) => !w.contains("'")).toList();
+      if (content.isNotEmpty && ex.isNotEmpty) {
+        final longest = content.reduce((a, b) => b.length > a.length ? b : a);
+        if (!ex.contains(_stem(longest))) p.add('example does not use term');
+      }
+      final origin = raw['origin'];
+      if (origin is! String || origin.trim().isEmpty) p.add('origin missing');
+    case 'errors':
+      // Error spotting: term = sentence with (or without) one error, split
+      // into 4 parts; error = index of the wrong part, or 4 for "No error";
+      // ex = the corrected sentence; en = the rule.
+      final segs = raw['parts'];
+      final err = raw['error'];
+      if (segs is! List ||
+          segs.length != 4 ||
+          segs.any((x) => x is! String || x.trim().isEmpty)) {
+        p.add('parts must be 4 non-empty strings');
+      } else if (segs
+              .map((x) => (x as String).trim())
+              .join(' ')
+              .toLowerCase() !=
+          term) {
+        p.add('parts must join to the sentence');
+      }
+      if (err is! int || err < 0 || err > 4) p.add('error must be 0-4');
+      if (err == 4 && ex != term) p.add('a "No error" sentence must equal ex');
+      if (err is int && err < 4 && ex == term) {
+        p.add('corrected sentence must differ');
+      }
     case 'idioms' || 'phrasal':
       if (parts.length < 2) p.add('term must be a phrase');
       // The example must use the phrase: its longest word must appear.
@@ -533,4 +566,94 @@ List<String> _checkRoot(Map raw) {
     p.add('example uses none of the derived words');
   }
   return p;
+}
+
+/// Problems with one cloze passage.
+///   {id, title, text: "... {1} ... {2} ...", blanks: [{options: [4], answer:
+///    0-3, explain}], level?}
+/// Blanks are numbered in order; 4-8 per passage.
+List<String> checkClozeItem(Object? raw) {
+  if (raw is! Map) return ['not an object'];
+  final p = <String>[];
+  final title = raw['title'];
+  final text = raw['text'];
+  if (title is! String || title.trim().isEmpty) p.add('title missing');
+  if (title is String && raw['id'] != packId(title)) {
+    p.add('id must be ${packId(title)}');
+  }
+  if (text is! String || text.trim().isEmpty) return [...p, 'text missing'];
+  final blanks = raw['blanks'];
+  if (blanks is! List || blanks.length < 4 || blanks.length > 8) {
+    return [...p, 'needs 4-8 blanks'];
+  }
+  final marks = RegExp(
+    r'\{(\d+)\}',
+  ).allMatches(text).map((m) => int.parse(m[1]!));
+  if (marks.join(',') !=
+      [for (var i = 1; i <= blanks.length; i++) i].join(',')) {
+    p.add('text must contain {1}..{${blanks.length}} once each, in order');
+  }
+  final words = text.split(RegExp(r'\s+')).length;
+  if (words < 60 || words > 260) p.add('text should be 60-260 words');
+  for (var i = 0; i < blanks.length; i++) {
+    final b = blanks[i];
+    final opts = b is Map ? b['options'] : null;
+    if (b is! Map ||
+        opts is! List ||
+        opts.length != 4 ||
+        opts.any((o) => o is! String || o.trim().isEmpty) ||
+        opts.map((o) => (o as String).trim().toLowerCase()).toSet().length !=
+            4) {
+      p.add('blank ${i + 1}: needs 4 different options');
+      continue;
+    }
+    final a = b['answer'];
+    if (a is! int || a < 0 || a > 3) {
+      p.add('blank ${i + 1}: answer must be 0-3');
+    }
+    final e = b['explain'];
+    if (e is! String || e.trim().isEmpty) {
+      p.add('blank ${i + 1}: explain missing');
+    }
+  }
+  return p;
+}
+
+/// Problems with passages.json; with [previous], existing passages keep
+/// their order and the version goes up.
+List<String> checkClozeFile(Object? raw, {Object? previous}) {
+  if (raw is! Map) return ['file is not a JSON object'];
+  final out = <String>[];
+  final version = raw['version'];
+  if (version is! int) out.add('version must be an integer');
+  final items = raw['items'];
+  if (items is! List) return [...out, 'items must be a list'];
+  final seen = <String>{};
+  for (var i = 0; i < items.length; i++) {
+    final e = items[i];
+    final id = e is Map && e['id'] is String ? e['id'] as String : '#$i';
+    for (final problem in checkClozeItem(e)) {
+      out.add('$id: $problem');
+    }
+    if (!seen.add(id)) out.add('$id: duplicate id');
+  }
+  if (previous is Map && previous['items'] is List) {
+    final pv = previous['version'];
+    if (version is int && pv is int && version <= pv) {
+      out.add('version must be higher than $pv');
+    }
+    final old = [
+      for (final e in previous['items'] as List)
+        if (e is Map) e['id'],
+    ];
+    for (var i = 0; i < old.length; i++) {
+      if (i >= items.length ||
+          items[i] is! Map ||
+          (items[i] as Map)['id'] != old[i]) {
+        out.add('existing passages must stay in order (position $i)');
+        break;
+      }
+    }
+  }
+  return out;
 }

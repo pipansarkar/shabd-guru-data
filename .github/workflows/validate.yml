@@ -28,7 +28,7 @@ jobs:
           else
             dart run validate.dart words.json
           fi
-          for f in editorial.json idioms.json ows.json phrasal.json spelling.json confusables.json roots.json; do
+          for f in editorial.json idioms.json ows.json phrasal.json spelling.json confusables.json roots.json foreign.json errors.json passages.json; do
             if [ -f "$f" ]; then dart run validate.dart "$f"; fi
           done
       - name: Revert invalid push

@@ -19,6 +19,8 @@ void main(List<String> args) {
   final pack = name.replaceAll('.json', '');
   final problems = name.startsWith('editorial')
       ? checkEditorialFile(next, previous: prev)
+      : name.startsWith('passages')
+      ? checkClozeFile(next, previous: prev)
       : name.startsWith('exams')
       ? checkExamsFile(next)
       : packTargets.containsKey(pack)

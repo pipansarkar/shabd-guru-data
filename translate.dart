@@ -73,7 +73,15 @@ Future<void> main(List<String> args) async {
         },
         formatItems,
       ),
-    for (final pack in ['idioms', 'ows', 'phrasal', 'spelling', 'confusables'])
+    for (final pack in [
+      'idioms',
+      'ows',
+      'phrasal',
+      'spelling',
+      'confusables',
+      'foreign',
+      'errors',
+    ])
       if (File('$pack.json').existsSync())
         _Source(
           '$pack.json',

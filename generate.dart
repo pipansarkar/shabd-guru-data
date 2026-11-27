@@ -30,7 +30,7 @@ Future<void> main(List<String> args) async {
     stdout.writeln('Words already added today.');
     return;
   }
-  final want = (args.isNotEmpty ? int.parse(args.first) : 25).clamp(
+  final want = (args.isNotEmpty ? int.parse(args.first) : 40).clamp(
     0,
     target - words.length,
   );

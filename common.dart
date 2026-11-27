@@ -231,10 +231,10 @@ class Gemini {
 
   /// Hard cap per run so the free daily quota (about 20 requests per model)
   /// is never exceeded by retries.
-  int _budget = 16;
+  int _budget = 24;
 
   /// Each job stops asking after this long and publishes what passed.
-  static const deadline = Duration(minutes: 8);
+  static const deadline = Duration(minutes: 10);
   final _clock = Stopwatch()..start();
 
   /// Asks for JSON matching [schema] through the Interactions API, falling

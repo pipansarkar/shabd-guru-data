@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "updated": "2026-11-27",
+  "items": [
+    {"id": "bona-fide", "term": "bona fide", "origin": "Latin", "en": "Genuine; in good faith", "bn": "খাঁটি, সরল বিশ্বাসে", "hi": "वास्तविक, सद्भावपूर्ण", "tr": {}, "ex": "Only bona fide students can enter the library.", "exams": ["ssc", "bank"]},
+    {"id": "ad-hoc", "term": "ad hoc", "origin": "Latin", "en": "Made for a particular purpose only", "bn": "বিশেষ উদ্দেশ্যে গঠিত", "hi": "तदर्थ", "tr": {}, "ex": "The college formed an ad hoc committee for the fest.", "exams": ["ssc", "bank"]},
+    {"id": "status-quo", "term": "status quo", "origin": "Latin", "en": "The existing state of affairs", "bn": "বর্তমান অবস্থা", "hi": "यथास्थिति", "tr": {}, "ex": "Many people resist change and prefer the status quo.", "exams": ["ssc", "bank"]},
+    {"id": "faux-pas", "term": "faux pas", "origin": "French", "en": "An embarrassing social mistake", "bn": "সামাজিক ভুল", "hi": "सामाजिक भूल", "tr": {}, "ex": "Arriving late to the interview was a faux pas.", "exams": ["ssc", "bank"]},
+    {"id": "vice-versa", "term": "vice versa", "origin": "Latin", "en": "The other way round", "bn": "বিপরীতভাবে", "hi": "इसके विपरीत", "tr": {}, "ex": "Teachers learn from students and vice versa.", "exams": ["ssc", "bank"]},
+    {"id": "de-facto", "term": "de facto", "origin": "Latin", "en": "In fact, whether or not by law", "bn": "কার্যত", "hi": "वास्तव में", "tr": {}, "ex": "He is the de facto head of the team.", "exams": ["ssc", "bank"]},
+    {"id": "de-jure", "term": "de jure", "origin": "Latin", "en": "According to law", "bn": "আইনত", "hi": "विधितः", "tr": {}, "ex": "The king was the de jure ruler, but ministers had real power.", "exams": ["ssc", "bank"]},
+    {"id": "per-capita", "term": "per capita", "origin": "Latin", "en": "For each person", "bn": "মাথাপিছু", "hi": "प्रति व्यक्ति", "tr": {}, "ex": "The state's per capita income rose this year.", "exams": ["ssc", "bank"]},
+    {"id": "alma-mater", "term": "alma mater", "origin": "Latin", "en": "The school or college one attended", "bn": "শিক্ষায়তন", "hi": "मातृ संस्था", "tr": {}, "ex": "She donated books to her alma mater.", "exams": ["ssc", "bank"]},
+    {"id": "carte-blanche", "term": "carte blanche", "origin": "French", "en": "Complete freedom to act", "bn": "পূর্ণ স্বাধীনতা", "hi": "पूरी छूट", "tr": {}, "ex": "The director gave the designer carte blanche.", "exams": ["ssc", "bank"]},
+    {"id": "modus-operandi", "term": "modus operandi", "origin": "Latin", "en": "A particular way of doing something", "bn": "কাজের পদ্ধতি", "hi": "कार्यप्रणाली", "tr": {}, "ex": "The police studied the gang's modus operandi.", "exams": ["ssc", "bank"]},
+    {"id": "persona-non-grata", "term": "persona non grata", "origin": "Latin", "en": "An unwelcome person", "bn": "অবাঞ্ছিত ব্যক্তি", "hi": "अवांछित व्यक्ति", "tr": {}, "ex": "After the scandal he became persona non grata at the club.", "exams": ["ssc", "bank"]},
+    {"id": "prima-facie", "term": "prima facie", "origin": "Latin", "en": "At first sight; on the face of it", "bn": "প্রথম দর্শনে", "hi": "प्रथम दृष्टया", "tr": {}, "ex": "There is prima facie evidence of fraud.", "exams": ["ssc", "bank"]},
+    {"id": "rendezvous", "term": "rendezvous", "origin": "French", "en": "A meeting at an agreed time and place", "bn": "সাক্ষাৎ", "hi": "मिलन स्थल", "tr": {}, "ex": "The friends chose the old cafe as their rendezvous.", "exams": ["ssc", "bank"]},
+    {"id": "en-route", "term": "en route", "origin": "French", "en": "On the way", "bn": "পথে", "hi": "रास्ते में", "tr": {}, "ex": "We stopped for tea en route to Darjeeling.", "exams": ["ssc", "bank"]},
+    {"id": "deja-vu", "term": "deja vu", "origin": "French", "en": "A feeling of having seen something before", "bn": "পূর্বদৃষ্টির অনুভূতি", "hi": "पहले देखे होने का एहसास", "tr": {}, "ex": "Walking into the hall gave her a strong sense of deja vu.", "exams": ["ssc", "bank"]},
+    {"id": "cliche", "term": "cliche", "origin": "French", "en": "An overused phrase or idea", "bn": "গতানুগতিক কথা", "hi": "घिसा-पिटा कथन", "tr": {}, "ex": "The speech was full of cliche and empty promises.", "exams": ["ssc", "bank"]},
+    {"id": "verbatim", "term": "verbatim", "origin": "Latin", "en": "In exactly the same words", "bn": "হুবহু", "hi": "शब्दशः", "tr": {}, "ex": "He repeated the teacher's notes verbatim.", "exams": ["ssc", "bank"]},
+    {"id": "alibi", "term": "alibi", "origin": "Latin", "en": "Proof of being elsewhere at the time", "bn": "অন্যত্র থাকার প্রমাণ", "hi": "अन्यत्र उपस्थिति का प्रमाण", "tr": {}, "ex": "The suspect had a strong alibi.", "exams": ["ssc", "bank"]},
+    {"id": "sine-qua-non", "term": "sine qua non", "origin": "Latin", "en": "An essential condition", "bn": "অপরিহার্য শর্ত", "hi": "अनिवार्य शर्त", "tr": {}, "ex": "Hard work is a sine qua non for success.", "exams": ["ssc", "bank"]},
+    {"id": "tete-a-tete", "term": "tete a tete", "origin": "French", "en": "A private conversation between two people", "bn": "একান্ত আলাপ", "hi": "आमने-सामने बातचीत", "tr": {}, "ex": "The two leaders had a tete a tete over tea.", "exams": ["ssc", "bank"]},
+    {"id": "magnum-opus", "term": "magnum opus", "origin": "Latin", "en": "A person's greatest work", "bn": "শ্রেষ্ঠ রচনা", "hi": "सर्वश्रेष्ठ कृति", "tr": {}, "ex": "Gitanjali is often called Tagore's magnum opus.", "exams": ["ssc", "bank"]},
+    {"id": "par-excellence", "term": "par excellence", "origin": "French", "en": "The best of its kind", "bn": "অনন্য, শ্রেষ্ঠ", "hi": "सर्वश्रेष्ठ", "tr": {}, "ex": "He is a storyteller par excellence.", "exams": ["ssc", "bank"]},
+    {"id": "quid-pro-quo", "term": "quid pro quo", "origin": "Latin", "en": "A favour given in return for another", "bn": "পারস্পরিক সুবিধা বিনিময়", "hi": "लेन-देन का सौदा", "tr": {}, "ex": "The deal looked like a quid pro quo between the two firms.", "exams": ["ssc", "bank"]}
+  ]
+}

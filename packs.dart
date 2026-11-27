@@ -88,6 +88,28 @@ const specs = {
         '- tip: a short memory trick\n'
         '- ex: one original sentence that correctly uses every word in the group',
   ),
+  'foreign': PackSpec(
+    'foreign',
+    20,
+    10,
+    'foreign (Latin, French, Greek, Italian, Sanskrit...) words and phrases used in English and asked in Indian competitive exams (e.g. "bona fide", "ad hoc", "status quo", "faux pas"); write them in plain ASCII letters without accents (e.g. "cliche", "naive")',
+    '- term: the phrase, lower case, ASCII letters only\n'
+        '- origin: the language it comes from (e.g. Latin, French)\n'
+        '- en: its meaning in English, under 12 words\n'
+        '- ex: one original sentence using the phrase',
+  ),
+  'errors': PackSpec(
+    'errors',
+    20,
+    10,
+    'grammar rules most often tested in SSC and Bank "spot the error" questions (subject-verb agreement, tenses, articles, prepositions, pronouns, degrees of comparison, conditionals, question tags...); for each, describe one sentence idea',
+    '- parts: the sentence split into exactly 4 consecutive parts (A, B, C, D) that together make the whole sentence\n'
+        '- term: the 4 parts joined with single spaces (the sentence as shown in the exam)\n'
+        '- error: index 0-3 of the part with the error, or 4 if the sentence has no error (use 4 for about one in eight sentences)\n'
+        '- ex: the corrected sentence (identical to term when error is 4)\n'
+        '- en: the rule in one or two short sentences\n'
+        '- each sentence original, exam style, Indian context welcome, with at most one error',
+  ),
   'roots': PackSpec(
     'roots',
     4,
@@ -148,6 +170,16 @@ Map<String, Object> _itemSchema(String pack) {
       };
       props['tip'] = {'type': 'STRING'};
       list = ['words', 'tip'];
+    case 'foreign':
+      props['origin'] = {'type': 'STRING'};
+      list = ['origin'];
+    case 'errors':
+      props['parts'] = {
+        'type': 'ARRAY',
+        'items': {'type': 'STRING'},
+      };
+      props['error'] = {'type': 'INTEGER'};
+      list = ['parts', 'error'];
     case 'roots':
       props['forms'] = {
         'type': 'ARRAY',
@@ -201,19 +233,32 @@ Future<void> main(List<String> args) async {
     stderr.writeln('GEMINI_API_KEY is not set');
     exit(1);
   }
-  // Rotate one pack per day, skipping full ones.
+  // Rotate packs by day, skipping full ones. `--second` grows one more
+  // pack in the same run (up to two a day); a later (backup) run adds
+  // nothing once today's packs are grown.
   final day = DateTime.now().toUtc().difference(DateTime.utc(2026)).inDays;
   final order = packTargets.keys.toList();
-  String? pack = args.isNotEmpty ? args[0] : null;
+  final second = args.isNotEmpty && args.first == '--second';
+  final rest = second ? args.skip(1).toList() : args;
+  String? pack = rest.isNotEmpty ? rest[0] : null;
   final files = <String, Map<String, dynamic>>{};
   Map<String, dynamic> load(String p) =>
       files[p] ??= File('$p.json').existsSync()
       ? jsonDecode(File('$p.json').readAsStringSync()) as Map<String, dynamic>
       : <String, dynamic>{'version': 0, 'items': <Object>[]};
+  final today = todayIst();
+  final grownToday = packTargets.keys
+      .where((k) => load(k)['grown'] == today)
+      .length;
+  if (rest.isEmpty && grownToday >= (second ? 2 : 1)) {
+    stdout.writeln('Enough topic packs were grown today.');
+    return;
+  }
   if (pack == null) {
     for (var i = 0; i < order.length; i++) {
       final p = order[(day + i) % order.length];
-      if ((load(p)['items'] as List).length < packTargets[p]!) {
+      if ((load(p)['items'] as List).length < packTargets[p]! &&
+          load(p)['grown'] != today) {
         pack = p;
         break;
       }
@@ -223,16 +268,10 @@ Future<void> main(List<String> args) async {
     stdout.writeln('Every pack is full.');
     return;
   }
-  // A second (backup) run on the same day adds nothing.
-  if (args.isEmpty &&
-      packTargets.keys.any((k) => load(k)['grown'] == todayIst())) {
-    stdout.writeln('A topic pack was already grown today.');
-    return;
-  }
   final spec = specs[pack]!;
   final data = load(pack);
   final items = (data['items'] as List).cast<Map<String, dynamic>>();
-  final want = (args.length > 1 ? int.parse(args[1]) : spec.perRun).clamp(
+  final want = (rest.length > 1 ? int.parse(rest[1]) : spec.perRun).clamp(
     0,
     packTargets[pack]! - items.length,
   );
@@ -241,7 +280,9 @@ Future<void> main(List<String> args) async {
 
   final ai = Gemini(await pickModels());
   // 1. Candidates. Long packs rotate by first letter to keep prompts short.
-  var avoid = items.map((i) => i['term'] as String).toList();
+  var avoid = pack == 'errors'
+      ? <String>[] // sentences are new each time; ids prevent repeats
+      : items.map((i) => i['term'] as String).toList();
   var letterNote = '';
   if (avoid.length > 150) {
     const letters = 'abcdefghilmnoprstu';
@@ -316,7 +357,9 @@ ${jsonEncode(draft)}''', schema: schema);
       for (final raw in (reviewed as List).cast<Map<String, dynamic>>()) {
         final e = _normalise(raw, pack);
         final id = e['id'] as String;
-        if (existing.contains(id) || !batch.any((b) => packId(b) == id))
+        // Error-spotting candidates are grammar rules, not the sentences.
+        if (existing.contains(id) ||
+            (pack != 'errors' && !batch.any((b) => packId(b) == id)))
           continue;
         _dropBadTranslations(e, pack);
         final problems = checkPackItem(e, pack);
@@ -385,6 +428,16 @@ Map<String, dynamic> _normalise(Map<String, dynamic> r, String pack) {
     'exams': l(r['exams']),
   });
   switch (pack) {
+    case 'foreign':
+      e['origin'] = s(r['origin']);
+    case 'errors':
+      final parts = [for (final x in (r['parts'] as List? ?? const [])) s(x)];
+      final sentence = parts.join(' ');
+      e['parts'] = parts;
+      e['error'] = (r['error'] as num?)?.toInt() ?? -1;
+      // Keep the sentence's capitalisation; the rules compare lower case.
+      e['term'] = sentence;
+      e['id'] = packId(sentence);
     case 'ows':
       e['clue'] = s(r['clue']);
     case 'spelling':
