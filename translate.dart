@@ -54,6 +54,25 @@ Future<void> main(List<String> args) async {
       (e) => checkWordEntry(e),
       formatWords,
     ),
+    // Word Roots: the root itself and each word built from it. Only the
+    // script is checked per translation; the workflow validates the file.
+    if (File('roots.json').existsSync())
+      _Source(
+        'roots.json',
+        (d) => [
+          for (final l
+              in (d['items'] as List).cast<Map<String, dynamic>>()) ...[
+            l,
+            ...(l['words'] as List).cast<Map<String, dynamic>>(),
+          ],
+        ],
+        (e) {
+          final p = <String>[];
+          checkTranslations(e['tr'], p);
+          return p;
+        },
+        formatItems,
+      ),
     for (final pack in ['idioms', 'ows', 'phrasal', 'spelling', 'confusables'])
       if (File('$pack.json').existsSync())
         _Source(
