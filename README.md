@@ -14,6 +14,9 @@ a change (no app release needed).
 | `spelling.json` | commonly misspelt words (300) | `packs.dart` |
 | `confusables.json` | confusing word groups (200) | `packs.dart` |
 | `roots.json` | Word Roots course: Greek/Latin roots by theme (150) | `packs.dart` |
+| `foreign.json` | foreign words and phrases (150) | `packs.dart` |
+| `errors.json` | error spotting sentences (400) | `packs.dart` |
+| `passages.json` | cloze passages, one new a day | `cloze.dart` |
 
 Every card has English, Bengali and Hindi, plus `tr` with Marathi, Telugu,
 Tamil, Gujarati, Urdu, Kannada, Odia, Malayalam, Punjabi and Assamese
@@ -34,7 +37,8 @@ lesson structure or word list is taken from any book.
    never copied.
 2. **Words**: suggests frequent exam words, ranks them by real-world
    frequency, writes 25 cards.
-3. **Levels**, **topic packs** (one pack a day, rotating) and
+3. **Cloze**: one original exam-style passage with 6 blanks.
+4. **Levels**, **topic packs** (two packs a day, rotating) and
    **translations** use the rest of the free daily quota.
 
 Cards are written by the free Gemini API (Google AI Studio), corrected by a
